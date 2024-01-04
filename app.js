@@ -26,8 +26,6 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://localhost:3000',
-    'http://api.vmovies.nomoredomainsmonster.ru',
-    'https://api.vmovies.nomoredomainsmonster.ru',
     'http://vmovies.nomoredomainsmonster.ru',
     'https://vmovies.nomoredomainsmonster.ru',
   ],
