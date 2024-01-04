@@ -26,6 +26,8 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://localhost:3000',
+    'http://api.vmovies.nomoredomainsmonster.ru',
+    'https://api.vmovies.nomoredomainsmonster.ru',
     'http://vmovies.nomoredomainsmonster.ru',
     'https://vmovies.nomoredomainsmonster.ru',
   ],
@@ -33,6 +35,12 @@ app.use(cors({
 
 app.use(requestLogger);
 app.use(helmet());
+
+app.get('/crash-test', () => {
+  setTimeout(() => {
+    throw new Error('Сервер сейчас упадёт');
+  }, 0);
+});
 
 app.use('/', express.json());
 app.use('/users', usersRouter);
