@@ -2,7 +2,6 @@ const { NODE_ENV, JWT_SECRET } = process.env;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
-
 const NotFoundError = require('../errors/NotFoundError');
 const ConflictError = require('../errors/ConflictError');
 const BadRequestError = require('../errors/BadRequestError');
@@ -10,25 +9,25 @@ const ValidationError = require('../errors/ValidationError');
 
 function createUser(req, res, next) {
   const { name, email, password } = req.body;
-  bcrypt
-    .hash(password, 10)
-    .then((hash) => User.create({
-      name,
-      email,
-      password: hash,
-    }))
+  User.findOne({ email })
+    .then((existingUser) => {
+      if (existingUser) {
+        return next(new ConflictError('Пользователь с таким email уже существует'));
+      }
+      return bcrypt
+        .hash(password, 10)
+        .then((hash) => User.create({
+          name,
+          email,
+          password: hash,
+        }));
+    })
     .then((user) => {
-      const userData = user.toObject();
-      delete userData.password;
-      res.status(201).send(userData);
+      res.status(201).send(user);
     })
     .catch((err) => {
       if (err.code === 11000) {
-        return next(
-          new ConflictError(
-            'Пользователь уже зарегистрирован',
-          ),
-        );
+        return next(new ConflictError('Пользователь уже зарегистрирован'));
       }
       if (err.name === 'ValidationError') {
         return next(new BadRequestError('Отправленные некорректные данные'));
@@ -39,85 +38,68 @@ function createUser(req, res, next) {
 
 function login(req, res, next) {
   const { email, password } = req.body;
-  return User
-    .findOne({ email })
-    .select('+password')
+  User.findUserByCredentials(email, password)
     .then((user) => {
-      if (!user) {
-        return next(
-          new ValidationError('Неверный адрес электронной почты или пароль'),
-        );
-      }
-      return bcrypt.compare(password, user.password).then((matched) => {
-        if (!matched) {
-          return next(
-            new ValidationError('Неверный адрес электронной почты или пароль'),
-          );
-        }
-        const token = jwt.sign(
-          { _id: user._id },
-          NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
-          { expiresIn: '7d' },
-        );
-        return res.status(200).send({
-          token,
-        });
-      });
+      const token = jwt.sign(
+        { _id: user._id },
+        NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
+        { expiresIn: '7d' },
+      );
+      res.send({ token });
     })
     .catch(next);
 }
 
-function getUserById(req, res, next) {
+function getUserInfo(req, res, next) {
   const userId = req.user._id;
   User.findById(userId)
-    .orFail()
-    .then((user) => res.status(200).send(user))
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return next(new BadRequestError('Отправленные некорректные данные'));
+    .then((userInfo) => {
+      if (!userInfo) {
+        throw new NotFoundError('Пользователь с таким id не найден');
       }
-      if (err.name === 'DocumentNotFoundError') {
-        return next(
-          new NotFoundError(`Пользователь с таким Id: ${userId} не найден`),
-        );
+      res.status(200).send(userInfo);
+    })
+    .catch((error) => {
+      if (error.name === 'ValidationError') {
+        return next(new ValidationError(`Некорректные данные: ${error.message}`));
       }
-      return next(res);
+      return next(error);
     });
 }
 
-function updateUser(req, res, next) {
-  const { name, email } = req.body;
-  User.findByIdAndUpdate(
-    req.user._id,
-    { name, email },
-    { new: true, runValidators: true },
-  )
-    .then((user) => res.send(user))
-    .catch((err) => {
-      if (err.code === 11000) {
-        return next(
-          new ConflictError(
-            'Пользователь с таким адресом электронной почты уже зарегистрирован',
-          ),
-        );
+function updateUserInfo(req, res, next) {
+  const { email, name } = req.body;
+  const userId = req.user._id;
+  User.findOne({ email })
+    .then((existingUser) => {
+      if (existingUser && existingUser._id !== userId) {
+        throw new ConflictError('Пользователь с таким email уже существует');
+      } else {
+        User.findByIdAndUpdate(
+          userId,
+          { email, name },
+          { new: true, runValidators: true },
+        )
+          .then((user) => {
+            if (!user) {
+              throw new NotFoundError('Пользователь с таким id не найден');
+            }
+            res.status(200).send({ email: user.email, name: user.name });
+          })
+          .catch((error) => {
+            if (error.name === 'ValidationError') {
+              return next(new ValidationError(`Некорректные данные: ${error.message}`));
+            }
+            return next(error);
+          });
       }
-      if (err.name === 'CastError' || err.name === 'ValidationError') {
-        return next(new NotFoundError('Отправленные некорректные данные'));
-      }
-      return next(err);
-    });
-}
-
-function logout(req, res) {
-  req.session.destroy(() => {
-    res.send({ message: 'Выход пользователя.' });
-  });
+    })
+    .catch(next);
 }
 
 module.exports = {
   login,
   createUser,
-  getUserById,
-  updateUser,
-  logout,
+  getUserInfo,
+  updateUserInfo,
 };
