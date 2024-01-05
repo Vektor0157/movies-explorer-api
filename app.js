@@ -46,13 +46,13 @@ app.get('/crash-test', () => {
 });
 
 app.use('/', express.json());
-app.use('/users', auth, usersRouter);
-app.use('/movies', auth, moviesRouter);
+app.use('/users', usersRouter);
+app.use('/movies', moviesRouter);
 
 app.post('/signin', validateLogin, login);
 app.post('/signup', validateCreateUser, createUser);
 
-app.use('*', (req, res, next) => {
+app.use('*', auth, (req, res, next) => {
   next(new NotFoundError('Not Found'));
 });
 
