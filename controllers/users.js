@@ -1,7 +1,8 @@
-const { NODE_ENV, JWT_SECRET } = process.env;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+
+const { NODE_ENV, JWT_SECRET } = process.env;
 
 const NotFoundError = require('../errors/NotFoundError');
 const ConflictError = require('../errors/ConflictError');
@@ -9,23 +10,31 @@ const BadRequestError = require('../errors/BadRequestError');
 const ValidationError = require('../errors/ValidationError');
 
 function createUser(req, res, next) {
-  const { name, email, password } = req.body;
-  User.findOne({ email })
-    .then((existingUser) => {
-      if (existingUser) {
-        return next(new ConflictError('Пользователь с таким email уже существует'));
-      }
-      return bcrypt.hash(password, 10)
-        .then((hash) => User.create({ email, password: hash, name }))
-        .then((user) => {
-          res.status(200).send(user);
-        });
+  const {
+    email,
+    password,
+    name,
+  } = req.body;
+
+  bcrypt.hash(password, 10)
+    .then((hash) => User.create({ email, password: hash, name }))
+    .then((user) => {
+      res.status(200).send({
+        data: {
+          name: user.name,
+          email: user.email,
+          password: user.password,
+        },
+      });
     })
     .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return next(new ValidationError(`Некорректные данные: ${err.message}`));
+      if (err.code === 11000) {
+        next(new ConflictError('Пользователь с данным email уже существует'));
+      } else if (err.name === 'ValidationError') {
+        next(new BadRequestError('Переданы некорректные данные'));
+      } else {
+        next(err);
       }
-      return next(err);
     });
 }
 
@@ -46,23 +55,25 @@ function login(req, res, next) {
     .catch(next);
 }
 
-function getUserById(req, res, next) {
-  const userId = req.user._id;
+const getUsers = (req, res, next) => {
+  User.find({})
+    .then((users) => {
+      res.send({ users });
+    })
+    .catch(next);
+};
+
+const getUserById = (req, res, next) => {
+  const { userId } = req.user._id;
   User.findById(userId)
-    .orFail()
-    .then((user) => res.status(200).send(user))
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return next(new BadRequestError('Отправленные некорректные данные'));
+    .then((user) => {
+      if (user) {
+        return res.send(user);
       }
-      if (err.name === 'DocumentNotFoundError') {
-        return next(
-          new NotFoundError(`Пользователь с таким Id: ${userId} не найден`),
-        );
-      }
-      return next(res);
-    });
-}
+      throw new NotFoundError('User not found');
+    })
+    .catch(next);
+};
 
 function updateUser(req, res, next) {
   const { email, name } = req.body;
@@ -95,6 +106,7 @@ function updateUser(req, res, next) {
 }
 
 module.exports = {
+  getUsers,
   login,
   createUser,
   getUserById,

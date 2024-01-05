@@ -1,10 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const { errors } = require('celebrate');
+const { celebrate, errors, Joi } = require('celebrate');
 const cors = require('cors');
 const helmet = require('helmet');
-const { validateLogin, validateCreateUser } = require('./middlewares/celebrate');
 const auth = require('./middlewares/auth');
 const usersRouter = require('./routes/users');
 const moviesRouter = require('./routes/movies');
@@ -22,15 +21,12 @@ const {
 
 mongoose.connect(`${MONGO_URL}`, {
   useNewUrlParser: true,
-  useUnifiedTopology: true,
 }).then(() => console.log('Connected to MongoDB'));
 
 app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://localhost:3000',
-    'http://api.vmovies.nomoredomainsmonster.ru',
-    'https://api.vmovies.nomoredomainsmonster.ru',
     'http://vmovies.nomoredomainsmonster.ru',
     'https://vmovies.nomoredomainsmonster.ru',
   ],
@@ -46,11 +42,22 @@ app.get('/crash-test', () => {
 });
 
 app.use('/', express.json());
-app.use('/users', usersRouter);
-app.use('/movies', moviesRouter);
+app.use('/users', auth, usersRouter);
+app.use('/movies', auth, moviesRouter);
 
-app.post('/signin', validateLogin, login);
-app.post('/signup', validateCreateUser, createUser);
+app.post('/signin', celebrate({
+  body: Joi.object().keys({
+    email: Joi.string().required().email(),
+    password: Joi.string().required(),
+  }),
+}), login);
+app.post('/signup', celebrate({
+  body: Joi.object().keys({
+    name: Joi.string().required().min(2).max(30),
+    email: Joi.string().required().email(),
+    password: Joi.string().required(),
+  }),
+}), createUser);
 
 app.use('*', auth, (req, res, next) => {
   next(new NotFoundError('Not Found'));
