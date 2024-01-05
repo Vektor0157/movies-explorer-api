@@ -32,18 +32,16 @@ function createUser(req, res, next) {
 function login(req, res, next) {
   const { email, password } = req.body;
   User.findUserByCredentials(email, password)
-    .then((user) => {
-      if (!user) {
-        return next(
-          new ValidationError('Неверный адрес электронной почты или пароль'),
+    .then(({ _id: userId }) => {
+      if (userId) {
+        const token = jwt.sign(
+          { userId },
+          NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
+          { expiresIn: '7d' },
         );
+        return res.send({ token });
       }
-      const token = jwt.sign(
-        { _id: user._id },
-        NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
-        { expiresIn: '7d' },
-      );
-      return res.send({ token });
+      throw new BadRequestError('Invalid user data');
     })
     .catch(next);
 }
