@@ -10,28 +10,20 @@ const ValidationError = require('../errors/ValidationError');
 
 function createUser(req, res, next) {
   const { name, email, password } = req.body;
-  bcrypt
-    .hash(password, 10)
-    .then((hash) => User.create({
-      name,
-      email,
-      password: hash,
-    }))
-    .then((user) => {
-      const userData = user.toObject();
-      delete userData.password;
-      res.status(201).send(userData);
+  User.findOne({ email })
+    .then((existingUser) => {
+      if (existingUser) {
+        return next(new ConflictError('Пользователь с таким email уже существует'));
+      }
+      return bcrypt.hash(password, 10)
+        .then((hash) => User.create({ email, password: hash, name }))
+        .then((user) => {
+          res.status(200).send(user);
+        });
     })
     .catch((err) => {
-      if (err.code === 11000) {
-        return next(
-          new ConflictError(
-            'Пользователь уже зарегистрирован',
-          ),
-        );
-      }
       if (err.name === 'ValidationError') {
-        return next(new BadRequestError('Отправленные некорректные данные'));
+        return next(new ValidationError(`Некорректные данные: ${err.message}`));
       }
       return next(err);
     });
@@ -39,30 +31,19 @@ function createUser(req, res, next) {
 
 function login(req, res, next) {
   const { email, password } = req.body;
-  return User
-    .findOne({ email })
-    .select('+password')
+  User.findOne(email, password)
     .then((user) => {
       if (!user) {
         return next(
           new ValidationError('Неверный адрес электронной почты или пароль'),
         );
       }
-      return bcrypt.compare(password, user.password).then((matched) => {
-        if (!matched) {
-          return next(
-            new ValidationError('Неверный адрес электронной почты или пароль'),
-          );
-        }
-        const token = jwt.sign(
-          { _id: user._id },
-          NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
-          { expiresIn: '7d' },
-        );
-        return res.status(200).send({
-          token,
-        });
-      });
+      const token = jwt.sign(
+        { _id: user._id },
+        NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
+        { expiresIn: '7d' },
+      );
+      return res.status(200).send({ token });
     })
     .catch(next);
 }
@@ -92,20 +73,19 @@ function updateUser(req, res, next) {
     { name, email },
     { new: true, runValidators: true },
   )
-    .then((user) => res.send(user))
+    .then((user) => res.send({ email: user.email, name: user.name }))
     .catch((err) => {
       if (err.code === 11000) {
         return next(
-          new ConflictError(
-            'Пользователь с таким адресом электронной почты уже зарегистрирован',
-          ),
+          new ConflictError('Пользователь с таким адресом электронной почты уже зарегистрирован'),
         );
       }
       if (err.name === 'CastError' || err.name === 'ValidationError') {
         return next(new NotFoundError('Отправленные некорректные данные'));
       }
       return next(err);
-    });
+    })
+    .catch(next);
 }
 
 module.exports = {

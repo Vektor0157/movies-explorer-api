@@ -20,7 +20,10 @@ const {
   MONGO_URL = 'mongodb://127.0.0.1:27017/bitfilmsdb',
 } = process.env;
 
-mongoose.connect(`${MONGO_URL}`).then(() => console.log('Connected to MongoDB'));
+mongoose.connect(`${MONGO_URL}`, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log('Connected to MongoDB'));
 
 app.use(cors({
   origin: [
@@ -43,14 +46,14 @@ app.get('/crash-test', () => {
 });
 
 app.use('/', express.json());
-app.use('/users', usersRouter);
-app.use('/movies', moviesRouter);
+app.use('/users', auth, usersRouter);
+app.use('/movies', auth, moviesRouter);
 
 app.post('/signin', validateLogin, login);
 app.post('/signup', validateCreateUser, createUser);
 
-app.use('*', auth, () => {
-  throw new NotFoundError('Not Found');
+app.use('*', (req, res, next) => {
+  next(new NotFoundError('Not Found'));
 });
 
 app.use(errorLogger);
