@@ -21,6 +21,7 @@ const {
   MONGO_URL = 'mongodb://127.0.0.1:27017/bitfilmsdb',
 } = process.env;
 
+app.use((req, res, next) => { next(); });
 mongoose.connect(`${MONGO_URL}`, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -39,15 +40,15 @@ app.get('/crash-test', () => {
 });
 
 app.use('/', express.json());
-app.use(auth);
-app.use('/users', usersRouter);
-app.use('/movies', moviesRouter);
+
+app.use('/users', auth, usersRouter);
+app.use('/movies', auth, moviesRouter);
 
 app.post('/signin', validationLogin, login);
 app.post('/signup', validationCreateUser, createUser);
 
-app.use('*', auth, (req, res, next) => {
-  next(new NotFoundError('Not Found'));
+app.use('*', auth, () => {
+  throw new NotFoundError('Not Found');
 });
 
 app.use(errorLogger);
