@@ -30,9 +30,9 @@ const createUser = (req, res, next) => {
 const login = (req, res, next) => {
   const { email, password } = req.body;
   return User.findUserByCredentials(email, password)
-    .then((userId) => {
+    .then((user) => {
       const token = jwt.sign(
-        { userId },
+        { _id: user._id },
         NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key',
         { expiresIn: '7d' },
       );
