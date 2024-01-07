@@ -21,18 +21,16 @@ const {
   MONGO_URL = 'mongodb://127.0.0.1:27017/bitfilmsdb',
 } = process.env;
 
-app.use((req, res, next) => { next(); });
-
 mongoose.connect(`${MONGO_URL}`, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => console.log('Connected to MongoDB'));
 
-app.use(cors);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(requestLogger);
+
 app.use(helmet());
+app.use(cors);
 
 app.get('/crash-test', () => {
   setTimeout(() => {
@@ -40,10 +38,12 @@ app.get('/crash-test', () => {
   }, 0);
 });
 
+app.use(requestLogger);
 app.use('/', express.json());
 
-app.use('/users', auth, usersRouter);
-app.use('/movies', auth, moviesRouter);
+app.use(auth);
+app.use('/users', usersRouter);
+app.use('/movies', moviesRouter);
 
 app.post('/signin', validationLogin, login);
 app.post('/signup', validationCreateUser, createUser);
