@@ -22,6 +22,7 @@ const {
 } = process.env;
 
 app.use((req, res, next) => { next(); });
+
 mongoose.connect(`${MONGO_URL}`, {
   useNewUrlParser: true,
   useUnifiedTopology: true,

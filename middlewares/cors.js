@@ -21,5 +21,4 @@ const cors = (req, res, next) => {
   }
   return next();
 };
-
 module.exports = cors;
