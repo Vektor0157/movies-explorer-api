@@ -6,7 +6,6 @@ const cookieParser = require('cookie-parser');
 const { errors } = require('celebrate');
 const cors = require('./middlewares/cors');
 const router = require('./routes');
-const auth = require('./middlewares/auth');
 const ServerError = require('./errors/ServerError');
 const NotFoundError = require('./errors/NotFoundError');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
@@ -39,7 +38,7 @@ app.get('/crash-test', () => {
 app.use(requestLogger);
 app.use(router);
 
-app.use('*', auth, (req, res, next) => {
+app.use('*', (req, res, next) => {
   next(new NotFoundError('Not Found'));
 });
 
