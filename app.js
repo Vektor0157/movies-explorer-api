@@ -5,14 +5,10 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const { errors } = require('celebrate');
 const cors = require('./middlewares/cors');
-const auth = require('./middlewares/auth');
-const usersRouter = require('./routes/users');
-const moviesRouter = require('./routes/movies');
+const router = require('./routes');
 const ServerError = require('./errors/ServerError');
 const NotFoundError = require('./errors/NotFoundError');
-const { createUser, login } = require('./controllers/users');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
-const { validationCreateUser, validationLogin } = require('./middlewares/celebrate');
 
 const app = express();
 
@@ -39,17 +35,9 @@ app.get('/crash-test', () => {
   }, 0);
 });
 
+app.use(router);
+
 app.use(requestLogger);
-
-app.use('/users', auth, usersRouter);
-app.use('/movies', auth, moviesRouter);
-
-app.post('/signin', validationLogin, login);
-app.post('/signup', validationCreateUser, createUser);
-
-app.use((req, res, next) => {
-  next(new NotFoundError('Not Found'));
-});
 
 app.use(errorLogger);
 app.use(errors());
