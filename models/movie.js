@@ -40,8 +40,13 @@ const movieSchema = new mongoose.Schema(
       required: true,
       validate: regexUrl,
     },
+    owner: {
+      required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: User,
+    },
     movieId: {
-      type: Number,
+      type: String,
       required: true,
     },
     nameRU: {
@@ -50,11 +55,6 @@ const movieSchema = new mongoose.Schema(
     },
     nameEN: {
       type: String,
-      required: true,
-    },
-    owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: User,
       required: true,
     },
   },

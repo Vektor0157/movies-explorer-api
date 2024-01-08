@@ -6,17 +6,9 @@ const auth = require('../middlewares/auth');
 const { validationCreateUser, validationLogin } = require('../middlewares/celebrate');
 const NotFoundError = require('../errors/NotFoundError');
 
-router.post(
-  '/signup',
-  validationCreateUser,
-  createUser,
-);
+router.post('/signup', validationCreateUser, createUser);
 
-router.post(
-  '/signin',
-  validationLogin,
-  login,
-);
+router.post('/signin', validationLogin, login);
 
 router.use('/users', auth, userRoutes);
 router.use('/movies', auth, movieRoutes);
