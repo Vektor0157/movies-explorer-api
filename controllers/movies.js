@@ -4,9 +4,9 @@ const ForbiddenError = require('../errors/ForbiddenError');
 const BadRequestError = require('../errors/BadRequestError');
 
 function getAllMovies(req, res, next) {
-  Movies.find({ owner: req.user })
-    .then((movies) => res.send(movies))
-    .catch(next);
+  Movies.find({ owner: req.user._id })
+    .then((movies) => res.status(200).send(movies))
+    .catch((err) => next(err));
 }
 
 function createMovie(req, res, next) {
@@ -48,26 +48,20 @@ function createMovie(req, res, next) {
     });
 }
 
-function deleteMovie(req, res, next) {
-  const { movieId } = req.params.id;
-  Movies.findById(movieId)
-    .orFail(() => { throw new NotFoundError('Фильм с указанным id не найден'); })
+const deleteMovie = (req, res, next) => {
+  Movies.findById(req.params.movieId)
     .then((movie) => {
-      if (!(movie.owner.toJSON() === req.user._id)) {
-        throw new ForbiddenError('Нет доступа удалять фильмы других пользователей.');
+      if (!movie) {
+        throw new NotFoundError('Фильм не найден');
+      } else if (!(req.user._id === movie.owner.toString())) {
+        throw new ForbiddenError('Вы не можете удалять чужие фильмы');
       }
-      return Movies.findByIdAndRemove(movieId)
-        .then((deleteMovies) => res.send(deleteMovies))
-        .catch(next);
+      return Movies.deleteOne({ _id: movie._id }).then(() => {
+        res.send(movie);
+      });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        next(new BadRequestError('Передан некорректный id фильма'));
-      } else {
-        next(err);
-      }
-    });
-}
+    .catch(next);
+};
 
 module.exports = {
   getAllMovies,

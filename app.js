@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
-const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const { errors } = require('celebrate');
 const cors = require('./middlewares/cors');
 const auth = require('./middlewares/auth');
@@ -26,11 +26,12 @@ mongoose.connect(`${MONGO_URL}`, {
   useUnifiedTopology: true,
 }).then(() => console.log('Connected to MongoDB'));
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
 app.use(helmet());
 app.use(cors);
+
+express.json();
+app.use(cookieParser());
+app.use(express.json());
 
 app.get('/crash-test', () => {
   setTimeout(() => {
@@ -39,17 +40,15 @@ app.get('/crash-test', () => {
 });
 
 app.use(requestLogger);
-app.use('/', express.json());
 
-app.use(auth);
-app.use('/users', usersRouter);
-app.use('/movies', moviesRouter);
+app.use('/users', auth, usersRouter);
+app.use('/movies', auth, moviesRouter);
 
 app.post('/signin', validationLogin, login);
 app.post('/signup', validationCreateUser, createUser);
 
-app.use('*', auth, () => {
-  throw new NotFoundError('Not Found');
+app.use((req, res, next) => {
+  next(new NotFoundError('Not Found'));
 });
 
 app.use(errorLogger);
