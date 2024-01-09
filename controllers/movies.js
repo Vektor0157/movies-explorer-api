@@ -38,7 +38,7 @@ function createMovie(req, res, next) {
     nameRU,
     nameEN,
   })
-    .then((movie) => res.status(201).send(movie))
+    .then((movie) => res.status(201).send({ movie }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new BadRequestError('Переданны некорректные данные'));
