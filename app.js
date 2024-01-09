@@ -7,7 +7,6 @@ const { errors } = require('celebrate');
 const cors = require('./middlewares/cors');
 const router = require('./routes');
 const ServerError = require('./errors/ServerError');
-const NotFoundError = require('./errors/NotFoundError');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
 
 const app = express();
@@ -37,10 +36,6 @@ app.get('/crash-test', () => {
 
 app.use(requestLogger);
 app.use(router);
-
-app.use('*', (req, res, next) => {
-  next(new NotFoundError('Not Found'));
-});
 
 app.use(errorLogger);
 app.use(errors());
